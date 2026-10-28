@@ -1,0 +1,8 @@
+
+services:
+  webserver:
+    build: .
+    container_name: ansible-webserver
+    ports:
+      - "2222:22"
+      - "8080:80"

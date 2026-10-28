@@ -1,0 +1,74 @@
+
+---
+- name: Configure Nginx and deploy portfolio
+  hosts: webservers
+  become: yes
+
+  tasks:
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Create website directory
+      file:
+        path: /var/www/portfolio
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Copy website files
+      copy:
+        src: site/
+        dest: /var/www/portfolio/
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Configure Nginx virtual host
+      copy:
+        dest: /etc/nginx/sites-available/portfolio
+        content: |
+          server {
+              listen 80;
+              server_name localhost;
+
+              root /var/www/portfolio;
+              index index.html;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+        mode: '0644'
+      notify: Reload Nginx
+
+    - name: Enable portfolio website
+      file:
+        src: /etc/nginx/sites-available/portfolio
+        dest: /etc/nginx/sites-enabled/portfolio
+        state: link
+      notify: Reload Nginx
+
+    - name: Disable default website
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: Reload Nginx
+
+    - name: Validate Nginx configuration
+      command: nginx -t
+      changed_when: false
+
+    - name: Ensure Nginx is running
+      service:
+        name: nginx
+        state: started
+
+  handlers:
+    - name: Reload Nginx
+      service:
+        name: nginx
+        state: reloaded
